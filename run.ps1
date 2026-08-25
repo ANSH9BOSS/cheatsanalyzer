@@ -22,7 +22,7 @@ python -m pip install rich pyfiglet
 # Check if script exists, if not download it
 if (-not (Test-Path "ansh9boss.py")) {
     Write-Host "[*] Downloading latest ansh9boss.py from GitHub..." -ForegroundColor Cyan
-    Invoke-WebRequest -Uri "https://raw.githubusercontent.com/ANSH9BOSS/ansh9boss/main/ansh9boss.py" -OutFile "ansh9boss.py"
+    Invoke-WebRequest -Uri "https://raw.githubusercontent.com/ANSH9BOSS/cheatsanalyzer/main/ansh9boss.py" -OutFile "ansh9boss.py"
 }
 
 # Run the script with any passed arguments

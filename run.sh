@@ -28,6 +28,6 @@ if [ -f "ansh9boss.py" ]; then
     python3 ansh9boss.py "$@"
 else
     echo "[*] Downloading latest ansh9boss.py from GitHub..."
-    curl -sSL -o ansh9boss.py https://raw.githubusercontent.com/ANSH9BOSS/ansh9boss/main/ansh9boss.py
+    curl -sSL -o ansh9boss.py https://raw.githubusercontent.com/ANSH9BOSS/cheatsanalyzer/main/ansh9boss.py
     python3 ansh9boss.py "$@"
 fi
