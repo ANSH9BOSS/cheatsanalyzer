@@ -36,7 +36,7 @@ if ($needInstall) {
     python -m pip install customtkinter psutil rich pyfiglet requests --quiet --no-warn-script-location
 }
 
-# 3. Ensure full suite is present (Blazing fast sub-second download ~60KB)
+# 3. Ensure full suite is present
 if (-not (Test-Path "core") -or -not (Test-Path "ui")) {
     Write-Host "[*] Fetching ANSH9BOSS suite from GitHub..." -ForegroundColor Cyan
     $zipPath = "$env:TEMP\cheatsanalyzer.zip"
@@ -45,9 +45,18 @@ if (-not (Test-Path "core") -or -not (Test-Path "ui")) {
     if (Test-Path $extractPath) {
         Remove-Item -Path $extractPath -Recurse -Force -ErrorAction SilentlyContinue
     }
+    New-Item -ItemType Directory -Path $extractPath -Force | Out-Null
     
     Invoke-WebRequest -Uri "https://github.com/ANSH9BOSS/cheatsanalyzer/archive/refs/heads/main.zip" -OutFile $zipPath -UseBasicParsing
-    Expand-Archive -Path $zipPath -DestinationPath $extractPath -Force
+    
+    # Fast Native .NET Decompression (Avoids PowerShell Expand-Archive bugs)
+    try {
+        Add-Type -AssemblyName System.IO.Compression.FileSystem
+        [System.IO.Compression.ZipFile]::ExtractToDirectory($zipPath, $extractPath)
+    } catch {
+        tar.exe -xf "$zipPath" -C "$extractPath" 2>$null
+    }
+    
     Remove-Item -Path $zipPath -Force -ErrorAction SilentlyContinue
     Set-Location "$extractPath\cheatsanalyzer-main"
 }
