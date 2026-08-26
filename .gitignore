@@ -5,6 +5,7 @@ __pycache__/
 *.pyd
 venv/
 .env
+node_modules/
 
 # Local database files
 data/*.db
