@@ -248,6 +248,15 @@ def run_cli_audit(args, config):
         ReportGenerator.export_html(results_data, out_file)
         console.print(f"[green][+] Cryptographically Signed Forensic Dossier exported: [bold]{out_file}[/bold][/green]")
 
+    if not args.no_telemetry:
+        from core.integrations.discord_alerts import DiscordStaffAlerts
+        wh_url = config.get("discord_webhook")
+        if wh_url:
+            discord_client = DiscordStaffAlerts(wh_url)
+            success, msg = discord_client.send_audit_alert(results_data, player_ign="Player")
+            if success:
+                console.print(f"[cyan][+] Real-time Staff Alert dispatched to Discord Webhook.[/cyan]")
+
 def main():
     parser = argparse.ArgumentParser(description="ANSH9BOSS CheatsAnalyzer v3.0 - Tournament Ultra Forensic Suite")
     parser.add_argument("path", nargs="?", help="Specific directory or .jar file to scan")

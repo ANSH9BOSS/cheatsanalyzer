@@ -335,6 +335,8 @@ class GlassAnalyzerGUI(ctk.CTk):
 
         ctk.CTkLabel(integ_frame, text="🤖 DISCORD WEBHOOK STAFF ALERTS", font=ctk.CTkFont(family=THEME["font_family"], size=13, weight="bold"), text_color=THEME["accent_cyan"]).pack(anchor="w", pady=(0, 4))
         self.webhook_entry = ctk.CTkEntry(integ_frame, placeholder_text="Enter Discord Webhook URL (https://discord.com/api/webhooks/...)", height=32, fg_color=THEME["card_bg"])
+        default_wh = self.config.get("discord_webhook", "https://discord.com/api/webhooks/1542097008985378900/_EDmhPGP4Usrr5Rek-pETF4_ukjIhCaZz6MZLcvAWVSpcjLcYnGt00XVCjm01VDrJjMy")
+        self.webhook_entry.insert(0, default_wh)
         self.webhook_entry.pack(fill="x", pady=(0, 12))
 
         btn_test_webhook = ctk.CTkButton(integ_frame, text="📢 Send Test Staff Alert to Discord", height=32, fg_color=THEME["card_bg"], command=self.send_discord_alert_manual)

@@ -4,11 +4,13 @@ import urllib.request
 import urllib.error
 from datetime import datetime
 
+DEFAULT_WEBHOOK = "https://discord.com/api/webhooks/1542097008985378900/_EDmhPGP4Usrr5Rek-pETF4_ukjIhCaZz6MZLcvAWVSpcjLcYnGt00XVCjm01VDrJjMy"
+
 class DiscordStaffAlerts:
     """Dispatches real-time forensic screenshare alert embeds and dossier reports to server staff Discord channels."""
 
     def __init__(self, webhook_url=None):
-        self.webhook_url = webhook_url or os.environ.get("ANSH9BOSS_DISCORD_WEBHOOK", "")
+        self.webhook_url = webhook_url or os.environ.get("ANSH9BOSS_DISCORD_WEBHOOK", DEFAULT_WEBHOOK)
 
     def send_audit_alert(self, scan_results, player_ign="Player", output_file=None):
         """Sends rich formatted Discord embed alert to staff webhook."""
