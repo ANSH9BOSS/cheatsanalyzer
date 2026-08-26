@@ -95,6 +95,7 @@ def run_cli_audit(args, config):
     from core.forensics.vss_recovery import VSSArtifactScanner
     from core.analysis.parent_tracer import ParentProcessTracer
     from core.analysis.vanilla_integrity import VanillaIntegrityChecker
+    from core.analysis.launcher_detector import MinecraftLauncherDetector
     from ui.report_generator import ReportGenerator
 
     console = Console(safe_box=True)
@@ -113,6 +114,7 @@ def run_cli_audit(args, config):
     vss_recovery = VSSArtifactScanner()
     parent_tracer = ParentProcessTracer()
     vanilla_integrity = VanillaIntegrityChecker()
+    launcher_detector = MinecraftLauncherDetector()
 
     # Banner
     ascii_art = pyfiglet.figlet_format("ANSH9BOSS")
@@ -120,27 +122,16 @@ def run_cli_audit(args, config):
     console.print("[bold aquamarine1][*] TOURNAMENT ULTRA FORENSIC SUITE v3.0 (20-PHASE ENGINE)[/bold aquamarine1]")
     console.print("[dim white]VAD Memory Tree • USN Change Journal • JVMTI Class Dumper • PCA Logs • Cryptographic Cert[/dim white]\n")
 
-    # Discover mods
-    mod_files = []
-    if args.path:
-        target = Path(args.path)
-        if target.is_dir():
-            mod_files = list(target.rglob("*.jar"))
-        elif target.is_file() and target.suffix == ".jar":
-            mod_files = [target]
-    else:
-        appdata = os.environ.get("APPDATA")
-        if appdata:
-            default_mc = Path(appdata) / ".minecraft/mods"
-            if default_mc.exists():
-                mod_files.extend(list(default_mc.rglob("*.jar")))
-
-    mod_files = list(set([p.resolve() for p in mod_files if p.is_file()]))
-    console.print(f"[cyan][*] Discovered [bold]{len(mod_files)}[/bold] mod file(s) to analyze.[/cyan]")
+    # Discover mods automatically across all launchers & active games
+    mod_files = launcher_detector.discover_all_mod_files(args.path)
+    console.print(f"[cyan][*] Auto-Discovered [bold]{len(mod_files)}[/bold] mod file(s) across all Minecraft launcher profiles.[/cyan]")
 
     mod_detections = []
     all_mods_info = []
     max_threat_score = 0
+
+    # Batch verify all mods in parallel
+    modrinth_results = modrinth.verify_batch_mods(mod_files)
 
     # Phase 1 & 2: Mod Scanning
     with Progress(
@@ -153,7 +144,7 @@ def run_cli_audit(args, config):
         task = progress.add_task("Auditing mods against Modrinth & Bytecode...", total=max(len(mod_files), 1))
         for mod in mod_files:
             progress.update(task, description=f"Inspecting {mod.name[:30]}...")
-            is_clean, info = modrinth.verify_mod(mod)
+            is_clean, info = modrinth_results.get(mod, (False, {}))
             jar_res = jar_analyzer.analyze_jar(mod)
             if is_clean:
                 jar_res["risk_level"] = "CLEAN"

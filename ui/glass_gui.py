@@ -37,6 +37,7 @@ from core.integrations.freeze_mode import TournamentFreezeMonitor
 from core.audio.cyber_audio import CyberVoiceAlerts
 from core.analysis.parent_tracer import ParentProcessTracer
 from core.analysis.vanilla_integrity import VanillaIntegrityChecker
+from core.analysis.launcher_detector import MinecraftLauncherDetector
 
 # UI Modals & Design
 from ui.theme import THEME
@@ -136,7 +137,11 @@ class GlassAnalyzerGUI(ctk.CTk):
         self.audio_alerts = CyberVoiceAlerts(enabled=True)
         self.parent_tracer = ParentProcessTracer()
         self.vanilla_integrity = VanillaIntegrityChecker()
+        self.launcher_detector = MinecraftLauncherDetector()
         self.freeze_monitor = TournamentFreezeMonitor(on_violation_callback=self.on_freeze_violation)
+
+        self.selected_target_path = None
+        self.detected_launchers = []
 
         self.scan_results = {
             "highest_risk": "STANDBY",
@@ -227,6 +232,58 @@ class GlassAnalyzerGUI(ctk.CTk):
             hover_color=THEME["panel_hover"], height=34, corner_radius=8, command=self.export_report
         )
         self.btn_export.pack(side="left", padx=3)
+
+        # 1.5 Target Folder / Launcher Profile Selector Bar
+        self.target_bar = ctk.CTkFrame(self, fg_color=THEME["panel_bg"], border_color=THEME["panel_border"], border_width=1, corner_radius=10)
+        self.target_bar.pack(fill="x", padx=16, pady=(0, 6))
+
+        ctk.CTkLabel(
+            self.target_bar,
+            text="🎯 TARGET:",
+            font=ctk.CTkFont(family=THEME["font_family"], size=11, weight="bold"),
+            text_color=THEME["accent_cyan"]
+        ).pack(side="left", padx=(12, 6), pady=6)
+
+        self.detected_launchers = self.launcher_detector.get_all_launcher_search_paths()
+        dropdown_values = ["⚡ Auto-Detect All Minecraft Launchers & Active Games (Default)"] + [f"{l['name']} ➔ {l['path']}" for l in self.detected_launchers]
+
+        self.target_dropdown = ctk.CTkOptionMenu(
+            self.target_bar,
+            values=dropdown_values,
+            command=self.on_target_selected,
+            fg_color=THEME["card_bg"],
+            button_color=THEME["accent_blue"],
+            button_hover_color=THEME["accent_cyan"],
+            text_color=THEME["text_primary"],
+            dropdown_fg_color=THEME["panel_bg"],
+            height=28,
+            width=580
+        )
+        self.target_dropdown.pack(side="left", padx=4, pady=6)
+
+        btn_browse = ctk.CTkButton(
+            self.target_bar,
+            text="📁 Custom Folder...",
+            font=ctk.CTkFont(family=THEME["font_family"], size=11),
+            fg_color=THEME["card_bg"],
+            hover_color=THEME["panel_hover"],
+            height=28,
+            width=130,
+            command=self.choose_custom_folder
+        )
+        btn_browse.pack(side="left", padx=4, pady=6)
+
+        btn_refresh_launchers = ctk.CTkButton(
+            self.target_bar,
+            text="🔄 Rescan",
+            font=ctk.CTkFont(family=THEME["font_family"], size=11),
+            fg_color=THEME["card_bg"],
+            hover_color=THEME["panel_hover"],
+            height=28,
+            width=80,
+            command=self.refresh_launchers_list
+        )
+        btn_refresh_launchers.pack(side="left", padx=4, pady=6)
 
         # 2. Middle Section: Radar HUD & Multi-Phase Pipeline
         self.middle_frame = ctk.CTkFrame(self, fg_color="transparent")
@@ -382,10 +439,31 @@ class GlassAnalyzerGUI(ctk.CTk):
         self.log_to_console(f"🚨 FREEZE VIOLATION: {text}")
         self.audio_alerts.speak("Warning. Self destruct cleaner process detected.")
 
+    def on_target_selected(self, choice):
+        if choice.startswith("⚡"):
+            self.selected_target_path = None
+            self.log_to_console("Target set to: Auto-Detect All Minecraft Launchers & Active Games")
+        else:
+            for l in self.detected_launchers:
+                if choice.startswith(l["name"]):
+                    self.selected_target_path = l["path"]
+                    self.log_to_console(f"Target profile selected: {l['name']} ({l['path']})")
+                    break
+
+    def refresh_launchers_list(self):
+        self.detected_launchers = self.launcher_detector.get_all_launcher_search_paths()
+        dropdown_values = ["⚡ Auto-Detect All Minecraft Launchers & Active Games (Default)"] + [f"{l['name']} ➔ {l['path']}" for l in self.detected_launchers]
+        self.target_dropdown.configure(values=dropdown_values)
+        self.target_dropdown.set(dropdown_values[0])
+        self.selected_target_path = None
+        self.log_to_console(f"Discovered {len(self.detected_launchers)} Minecraft launcher/profile directories on this system.")
+
     def choose_custom_folder(self):
-        folder = filedialog.askdirectory(title="Select Minecraft Mods Folder")
+        folder = filedialog.askdirectory(title="Select Custom Minecraft Mods Folder")
         if folder:
-            self.start_full_audit_thread(custom_path=folder)
+            self.selected_target_path = folder
+            self.target_dropdown.set(f"Custom ➔ {folder}")
+            self.log_to_console(f"Target directory set to custom folder: {folder}")
 
     def open_hex_viewer(self, address="0x00007FF7A10B4000", data=None):
         HexViewerModal(self, address, data)
@@ -478,19 +556,11 @@ class GlassAnalyzerGUI(ctk.CTk):
         for code in ["P1", "P2", "P3", "P4", "P5"]:
             self.update_phase(code, "WAITING")
 
-        mod_files = []
-        if custom_path:
-            mod_files = list(Path(custom_path).rglob("*.jar"))
-        else:
-            appdata = os.environ.get("APPDATA")
-            if appdata:
-                default_mc = Path(appdata) / ".minecraft/mods"
-                if default_mc.exists():
-                    mod_files.extend(list(default_mc.rglob("*.jar")))
-
-        mod_files = list(set([p.resolve() for p in mod_files if p.is_file()]))
+        target_path = custom_path or self.selected_target_path
+        mod_files = self.launcher_detector.discover_all_mod_files(target_path)
         self.scan_results["total_mods"] = len(mod_files)
         self.stat_mods.configure(text=str(len(mod_files)))
+        self.log_to_console(f"Discovered {len(mod_files)} mod JARs across Minecraft launcher profiles to analyze.")
 
         # Phase 1 & 2: Mod Scanning
         self.update_phase("P1", "RUNNING")
@@ -501,8 +571,11 @@ class GlassAnalyzerGUI(ctk.CTk):
         all_mods_info = []
         max_threat_score = 0
 
+        # Batch verify all mods in parallel
+        modrinth_results = self.modrinth.verify_batch_mods(mod_files)
+
         for idx, mod in enumerate(mod_files):
-            is_clean, mod_info = self.modrinth.verify_mod(mod)
+            is_clean, mod_info = modrinth_results.get(mod, (False, {}))
             jar_res = self.jar_analyzer.analyze_jar(mod)
 
             if is_clean:

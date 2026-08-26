@@ -64,7 +64,7 @@ class ModrinthVerifier:
                 url,
                 headers={"User-Agent": self.user_agent}
             )
-            with urllib.request.urlopen(req, timeout=2.5) as resp:
+            with urllib.request.urlopen(req, timeout=1.2) as resp:
                 data = json.loads(resp.read().decode("utf-8"))
                 if "id" in data and "project_id" in data:
                     project_id = data.get("project_id", "")
@@ -89,3 +89,76 @@ class ModrinthVerifier:
             pass
 
         return False, {"source": "Unverified on Modrinth", "clean": False, "sha1": sha1, "confidence": 0}
+
+    def verify_batch_mods(self, filepaths):
+        """
+        Batches up to 100 SHA-1 hashes into a single Modrinth API call for ultra-fast instant resolution.
+        Returns dict: {filepath: (is_clean, info_dict)}
+        """
+        results = {}
+        hash_to_path = {}
+        uncached_hashes = []
+
+        for fp in filepaths:
+            sha1 = self.calculate_sha1(fp)
+            if not sha1:
+                results[fp] = (False, {"source": "Invalid Hash", "clean": False, "confidence": 0})
+                continue
+            hash_to_path[sha1] = fp
+
+            # Check cache
+            if self.db:
+                cached_clean, cached_title = self.db.get_whitelist_cache(sha1)
+                if cached_clean is not None:
+                    results[fp] = (cached_clean, {
+                        "source": "Modrinth Cloud (Cached)",
+                        "title": cached_title,
+                        "clean": cached_clean,
+                        "sha1": sha1,
+                        "confidence": 100 if cached_clean else 0
+                    })
+                    continue
+
+            uncached_hashes.append(sha1)
+
+        # Query Modrinth API in 1 single batch POST
+        if uncached_hashes:
+            try:
+                payload = json.dumps({"hashes": uncached_hashes[:100], "algorithm": "sha1"}).encode("utf-8")
+                req = urllib.request.Request(
+                    "https://api.modrinth.com/v2/version_files",
+                    data=payload,
+                    headers={
+                        "Content-Type": "application/json",
+                        "User-Agent": self.user_agent
+                    }
+                )
+                with urllib.request.urlopen(req, timeout=3.0) as resp:
+                    api_data = json.loads(resp.read().decode("utf-8"))
+                    for sha1_key, vdata in api_data.items():
+                        if sha1_key in hash_to_path:
+                            fp = hash_to_path[sha1_key]
+                            proj_id = vdata.get("project_id", "")
+                            vname = vdata.get("name", "Verified Mod")
+                            loaders = ", ".join(vdata.get("loaders", []))
+                            info = {
+                                "source": f"Modrinth Official [{proj_id}]",
+                                "title": f"{vname} ({loaders})",
+                                "clean": True,
+                                "project_id": proj_id,
+                                "sha1": sha1_key,
+                                "confidence": 100
+                            }
+                            results[fp] = (True, info)
+                            if self.db:
+                                self.db.cache_whitelist(sha1_key, proj_id, vname, True)
+            except Exception:
+                pass
+
+        # Fill remaining unverified
+        for fp in filepaths:
+            if fp not in results:
+                sha1 = self.calculate_sha1(fp)
+                results[fp] = (False, {"source": "Unverified on Modrinth", "clean": False, "sha1": sha1, "confidence": 0})
+
+        return results
