@@ -1,32 +1,40 @@
 $ErrorActionPreference = "Stop"
-Write-Host "============================================="
-Write-Host "   ANSH9BOSS - AUTO INSTALLER AND RUNNER"
-Write-Host "============================================="
+Write-Host "==========================================================" -ForegroundColor Cyan
+Write-Host "   ANSH9BOSS CHEAT ANALYZER v2.0 - FORENSIC SUITE" -ForegroundColor Cyan
+Write-Host "==========================================================" -ForegroundColor Cyan
 
-# Check if Python is installed
+# 1. Check Python installation
 try {
     $pythonVersion = python --version 2>&1
+    Write-Host "[+] Python detected: $pythonVersion" -ForegroundColor Green
 } catch {
-    Write-Host "[-] Python is not installed or not in PATH." -ForegroundColor Red
-    Write-Host "[+] Opening Python download page..." -ForegroundColor Yellow
-    Start-Process "https://www.python.org/downloads/"
-    Write-Host "Please install Python (ensure you check 'Add Python to PATH') and restart this script." -ForegroundColor Yellow
-    Pause
-    exit 1
+    Write-Host "[*] Python is not installed. Attempting auto-install via winget..." -ForegroundColor Yellow
+    try {
+        winget install Python.Python.3.12 --silent --accept-package-agreements --accept-source-agreements
+        $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
+    } catch {
+        Write-Host "[-] Please install Python from https://www.python.org/downloads/ (Check 'Add Python to PATH')" -ForegroundColor Red
+        Start-Process "https://www.python.org/downloads/"
+        Pause
+        exit 1
+    }
 }
 
-# Install dependencies
-Write-Host "[*] Installing Python dependencies (rich, pyfiglet)..." -ForegroundColor Cyan
-python -m pip install rich pyfiglet
+# 2. Install dependencies
+Write-Host "[*] Installing required forensic and Glassmorphism GUI packages..." -ForegroundColor Cyan
+python -m pip install customtkinter psutil rich pyfiglet requests -q
 
-# Check if script exists, if not download it
-if (-not (Test-Path "ansh9boss.py")) {
-    Write-Host "[*] Downloading latest ansh9boss.py from GitHub..." -ForegroundColor Cyan
-    Invoke-WebRequest -Uri "https://raw.githubusercontent.com/ANSH9BOSS/cheatsanalyzer/main/ansh9boss.py" -OutFile "ansh9boss.py"
+# 3. Ensure full suite is present (download and extract if running standalone)
+if (-not (Test-Path "core") -or -not (Test-Path "ui")) {
+    Write-Host "[*] Fetching complete ANSH9BOSS suite from GitHub..." -ForegroundColor Cyan
+    $zipPath = "$env:TEMP\cheatsanalyzer.zip"
+    $extractPath = "$env:TEMP\cheatsanalyzer_run"
+    Invoke-WebRequest -Uri "https://github.com/ANSH9BOSS/cheatsanalyzer/archive/refs/heads/main.zip" -OutFile $zipPath
+    Expand-Archive -Path $zipPath -DestinationPath $extractPath -Force
+    Remove-Item -Path $zipPath -Force
+    Set-Location "$extractPath\cheatsanalyzer-main"
 }
 
-# Run the script with any passed arguments
+# 4. Launch the Glassmorphism GUI
+Write-Host "[+] Launching Glassmorphism Forensic Interface..." -ForegroundColor Green
 python ansh9boss.py $args
-
-Write-Host "Press any key to exit..."
-$Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown") | Out-Null

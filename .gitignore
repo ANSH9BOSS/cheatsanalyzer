@@ -13,6 +13,8 @@ data/ansh9boss_global.db
 
 # Test folder files
 test_mods/
+*.html
+*.json.bak
 
 # OS specific files
 .DS_Store

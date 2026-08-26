@@ -3,14 +3,18 @@ import os
 import zipfile
 from pathlib import Path
 
-TEST_DIR = Path("/home/ubuntu/ansh9boss/test_mods")
+BASE_DIR = Path(__file__).resolve().parent
+TEST_DIR = BASE_DIR / "test_mods"
 TEST_DIR.mkdir(exist_ok=True)
 
 def create_zip(filename, file_contents_dict):
     filepath = TEST_DIR / filename
     with zipfile.ZipFile(filepath, "w") as z:
         for fname, content in file_contents_dict.items():
-            z.writestr(fname, content)
+            if isinstance(content, str):
+                z.writestr(fname, content.encode("utf-8"))
+            else:
+                z.writestr(fname, content)
     print(f"Created mock mod: {filepath}")
 
 # 1. Clean Mod
@@ -32,26 +36,31 @@ create_zip("meteor-addon-v2.jar", {
 })
 
 # 4. Cheat Strings Match (Layer 3 Cheat Strings)
-# We will write aimbot, killaura, esp to check Layer 3 triggers
 create_zip("fancy-particles.jar", {
     "fabric.mod.json": '{"id": "fancy-particles", "version": "1.1.2"}',
     "net/particles/Particles.class": b"some byte code content containing aimbot and killaura and esp signatures"
 })
 
-# 5. Obfuscated Mod (Heuristic trigger: >75% short names)
+# 5. Obfuscated Mod (Heuristic trigger: >80% short names)
 obf_files = {
     "fabric.mod.json": '{"id": "hidden-mod", "version": "0.1"}'
 }
-for i in range(15):
-    char = chr(97 + i) # a, b, c...
+for i in range(20):
+    char = chr(97 + i)
     obf_files[f"net/hidden/{char}.class"] = b"small obfuscated class bytecode content"
 
 create_zip("obfuscated-protected.jar", obf_files)
 
-# 6. Corrupt / Protected Mod (Triggers unzip failure)
+# 6. Discord Webhook Token Stealer
+create_zip("sodium-extra-fake.jar", {
+    "fabric.mod.json": '{"id": "sodiumextra", "version": "0.5.0"}',
+    "me/flash/Stealer.class": b"payload string https://discord.com/api/webhooks/12345/token grabber"
+})
+
+# 7. Corrupt / Protected Mod (Triggers unzip failure)
 corrupt_filepath = TEST_DIR / "corrupt-headers-mod.jar"
 with open(corrupt_filepath, "wb") as f:
     f.write(b"PK\x03\x04 corrupt zip payload header error simulation")
 print(f"Created mock mod: {corrupt_filepath}")
 
-print("\nMock mods generated successfully.")
+print("\nMock mods generated successfully in test_mods directory.")

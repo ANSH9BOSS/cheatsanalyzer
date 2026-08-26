@@ -1,10 +1,11 @@
 #!/bin/bash
+set -e
 
-echo "============================================="
-echo "   ANSH9BOSS - AUTO INSTALLER & RUNNER       "
-echo "============================================="
+echo "=========================================================="
+echo "   ANSH9BOSS CHEAT ANALYZER v2.0 - FORENSIC SUITE         "
+echo "=========================================================="
 
-# Detect if running in Termux
+# 1. Environment and Python Check
 if [ -d "/data/data/com.termux" ]; then
     echo "[*] Android Termux environment detected."
     if ! command -v python &> /dev/null; then
@@ -19,15 +20,18 @@ else
     fi
 fi
 
-# Install dependencies (fallbacks for break-system-packages overrides)
-echo "[*] Installing Python dependencies (rich, pyfiglet)..."
-python3 -m pip install --break-system-packages rich pyfiglet 2>/dev/null || python3 -m pip install rich pyfiglet || pip3 install rich pyfiglet || pip install rich pyfiglet
+# 2. Dependencies
+echo "[*] Installing Python dependencies (rich, pyfiglet, psutil, requests)..."
+python3 -m pip install --break-system-packages rich pyfiglet psutil requests customtkinter 2>/dev/null || python3 -m pip install rich pyfiglet psutil requests customtkinter || pip install rich pyfiglet psutil requests
 
-# Run the analyzer
-if [ -f "ansh9boss.py" ]; then
-    python3 ansh9boss.py "$@"
-else
-    echo "[*] Downloading latest ansh9boss.py from GitHub..."
-    curl -sSL -o ansh9boss.py https://raw.githubusercontent.com/ANSH9BOSS/cheatsanalyzer/main/ansh9boss.py
-    python3 ansh9boss.py "$@"
+# 3. Check for core and ui modules
+if [ ! -d "core" ] || [ ! -d "ui" ]; then
+    echo "[*] Fetching complete ANSH9BOSS suite from GitHub..."
+    TMP_DIR=$(mktemp -d)
+    curl -sSL -o "$TMP_DIR/cheatsanalyzer.zip" https://github.com/ANSH9BOSS/cheatsanalyzer/archive/refs/heads/main.zip
+    unzip -q "$TMP_DIR/cheatsanalyzer.zip" -d "$TMP_DIR"
+    cd "$TMP_DIR/cheatsanalyzer-main"
 fi
+
+# 4. Launch Suite
+python3 ansh9boss.py "$@"
