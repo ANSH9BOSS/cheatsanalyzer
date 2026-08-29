@@ -5,7 +5,7 @@ import time
 import math
 from pathlib import Path
 import tkinter as tk
-from tkinter import filedialog, messagebox, simpledialog
+from tkinter import filedialog, messagebox
 import webbrowser
 
 import customtkinter as ctk
@@ -64,20 +64,28 @@ class CyberRadarCanvas(tk.Canvas):
         self.draw_static_grid()
 
     def draw_static_grid(self):
-        self.delete("all")
-        for r_factor in [0.33, 0.66, 1.0]:
-            r = self.radius * r_factor
-            self.create_oval(self.center_x - r, self.center_y - r, self.center_x + r, self.center_y + r, outline="#1C2738", width=1)
-        self.create_line(self.center_x - self.radius, self.center_y, self.center_x + self.radius, self.center_y, fill="#1C2738", width=1)
-        self.create_line(self.center_x, self.center_y - self.radius, self.center_x, self.center_y + self.radius, fill="#1C2738", width=1)
+        try:
+            self.delete("all")
+            for r_factor in [0.33, 0.66, 1.0]:
+                r = self.radius * r_factor
+                self.create_oval(self.center_x - r, self.center_y - r, self.center_x + r, self.center_y + r, outline="#1C2738", width=1)
+            self.create_line(self.center_x - self.radius, self.center_y, self.center_x + self.radius, self.center_y, fill="#1C2738", width=1)
+            self.create_line(self.center_x, self.center_y - self.radius, self.center_x, self.center_y + self.radius, fill="#1C2738", width=1)
+        except Exception:
+            pass
 
     def add_blip(self, is_threat=False):
-        dist = (0.2 + 0.7 * (time.time() % 1.0)) * self.radius
-        theta = (time.time() * 3.5) % (2 * math.pi)
-        bx = self.center_x + dist * math.cos(theta)
-        by = self.center_y + dist * math.sin(theta)
-        color = THEME["danger_red"] if is_threat else THEME["accent_cyan"]
-        self.blips.append({"x": bx, "y": by, "color": color, "alpha": 1.0})
+        def _do():
+            try:
+                dist = (0.2 + 0.7 * (time.time() % 1.0)) * self.radius
+                theta = (time.time() * 3.5) % (2 * math.pi)
+                bx = self.center_x + dist * math.cos(theta)
+                by = self.center_y + dist * math.sin(theta)
+                color = THEME["danger_red"] if is_threat else THEME["accent_cyan"]
+                self.blips.append({"x": bx, "y": by, "color": color, "alpha": 1.0})
+            except Exception:
+                pass
+        self.after(0, _do)
 
     def start_animation(self):
         if not self.is_running:
@@ -91,22 +99,25 @@ class CyberRadarCanvas(tk.Canvas):
     def animate(self):
         if not self.is_running:
             return
-        self.draw_static_grid()
-        rad = math.radians(self.angle)
-        end_x = self.center_x + self.radius * math.cos(rad)
-        end_y = self.center_y + self.radius * math.sin(rad)
-        self.create_line(self.center_x, self.center_y, end_x, end_y, fill=THEME["accent_cyan"], width=2)
+        try:
+            self.draw_static_grid()
+            rad = math.radians(self.angle)
+            end_x = self.center_x + self.radius * math.cos(rad)
+            end_y = self.center_y + self.radius * math.sin(rad)
+            self.create_line(self.center_x, self.center_y, end_x, end_y, fill=THEME["accent_cyan"], width=2)
 
-        remaining = []
-        for b in self.blips:
-            self.create_oval(b["x"] - 3, b["y"] - 3, b["x"] + 3, b["y"] + 3, fill=b["color"], outline="")
-            b["alpha"] -= 0.05
-            if b["alpha"] > 0:
-                remaining.append(b)
-        self.blips = remaining
+            remaining = []
+            for b in self.blips:
+                self.create_oval(b["x"] - 3, b["y"] - 3, b["x"] + 3, b["y"] + 3, fill=b["color"], outline="")
+                b["alpha"] -= 0.05
+                if b["alpha"] > 0:
+                    remaining.append(b)
+            self.blips = remaining
 
-        self.angle = (self.angle + 6) % 360
-        self.after(30, self.animate)
+            self.angle = (self.angle + 6) % 360
+            self.after(30, self.animate)
+        except Exception:
+            pass
 
 
 class GlassAnalyzerGUI(ctk.CTk):
@@ -163,6 +174,13 @@ class GlassAnalyzerGUI(ctk.CTk):
 
         # Background Threat Cloud Sync
         threading.Thread(target=self.threat_cloud.sync_signatures, daemon=True).start()
+
+    def safe_ui(self, func, *args, **kwargs):
+        """Dispatches a function safely onto the Tkinter main thread."""
+        try:
+            self.after(0, lambda: func(*args, **kwargs))
+        except Exception:
+            pass
 
     def setup_window(self):
         self.title("⚡ ANSH9BOSS CHEAT ANALYZER — TOURNAMENT ULTRA FORENSIC SUITE v3.0")
@@ -422,18 +440,46 @@ class GlassAnalyzerGUI(ctk.CTk):
         return val_lbl
 
     def log_to_console(self, text):
-        timestamp = time.strftime("%H:%M:%S")
-        self.console_box.insert("end", f"[{timestamp}] {text}\n")
-        self.console_box.see("end")
+        def _do():
+            try:
+                timestamp = time.strftime("%H:%M:%S")
+                self.console_box.insert("end", f"[{timestamp}] {text}\n")
+                self.console_box.see("end")
+            except Exception:
+                pass
+        self.after(0, _do)
 
     def update_phase(self, code, status, note=""):
-        symbols = {"RUNNING": ("⏳", THEME["warning_yellow"]), "CLEAN": ("✓", THEME["success_green"]), "ALERT": ("⚠️", THEME["danger_red"]), "WAITING": ("○", THEME["text_muted"])}
-        sym, color = symbols.get(status, ("○", THEME["text_muted"]))
-        lbl = self.phase_labels.get(code)
-        if lbl:
-            curr_text = lbl.cget("text")
-            base_name = curr_text.split(":")[-1].strip()
-            lbl.configure(text=f"{sym}  Phase {code[-1]}: {base_name} {note}", text_color=color)
+        def _do():
+            try:
+                symbols = {"RUNNING": ("⏳", THEME["warning_yellow"]), "CLEAN": ("✓", THEME["success_green"]), "ALERT": ("⚠️", THEME["danger_red"]), "WAITING": ("○", THEME["text_muted"])}
+                sym, color = symbols.get(status, ("○", THEME["text_muted"]))
+                lbl = self.phase_labels.get(code)
+                if lbl and lbl.winfo_exists():
+                    curr_text = lbl.cget("text")
+                    base_name = curr_text.split(":")[-1].strip()
+                    lbl.configure(text=f"{sym}  Phase {code[-1]}: {base_name} {note}", text_color=color)
+            except Exception:
+                pass
+        self.after(0, _do)
+
+    def set_progress(self, val):
+        def _do():
+            try:
+                if self.progress_bar.winfo_exists():
+                    self.progress_bar.set(val)
+            except Exception:
+                pass
+        self.after(0, _do)
+
+    def set_stat(self, widget, val):
+        def _do():
+            try:
+                if widget.winfo_exists():
+                    widget.configure(text=str(val))
+            except Exception:
+                pass
+        self.after(0, _do)
 
     def on_freeze_violation(self, text):
         self.log_to_console(f"🚨 FREEZE VIOLATION: {text}")
@@ -466,10 +512,16 @@ class GlassAnalyzerGUI(ctk.CTk):
             self.log_to_console(f"Target directory set to custom folder: {folder}")
 
     def open_hex_viewer(self, address="0x00007FF7A10B4000", data=None):
-        HexViewerModal(self, address, data)
+        try:
+            HexViewerModal(self, address, data)
+        except Exception as e:
+            self.log_to_console(f"Error opening Hex Viewer: {e}")
 
     def open_decompiler(self, jar_path):
-        DecompilerViewerModal(self, jar_path)
+        try:
+            DecompilerViewerModal(self, jar_path)
+        except Exception as e:
+            self.log_to_console(f"Error opening Decompiler: {e}")
 
     def trigger_rcon_ban(self):
         ip = self.rcon_ip_entry.get().strip() or "127.0.0.1"
@@ -504,6 +556,7 @@ class GlassAnalyzerGUI(ctk.CTk):
         self.is_scanning = True
         self.radar.start_animation()
         self.btn_full_scan.configure(state="disabled")
+        self.btn_ram_scan.configure(state="disabled")
         self.verdict_label.configure(text="AUDITING...", text_color=THEME["warning_yellow"])
         self.audio_alerts.speak("Initiating comprehensive forensic audit.")
         self.freeze_monitor.start_monitoring()
@@ -514,13 +567,14 @@ class GlassAnalyzerGUI(ctk.CTk):
             return
         self.is_scanning = True
         self.radar.start_animation()
+        self.btn_full_scan.configure(state="disabled")
         self.btn_ram_scan.configure(state="disabled")
         threading.Thread(target=self.run_ram_only_audit, daemon=True).start()
 
     def run_ram_only_audit(self):
         self.log_to_console("Scanning committed JVM RAM, VAD memory tree, and ImGui hooks...")
         self.update_phase("P3", "RUNNING")
-        self.progress_bar.set(0.5)
+        self.set_progress(0.5)
 
         ram_results = self.mem_scanner.run_full_memory_audit()
         detections = ram_results.get("detections", [])
@@ -534,7 +588,7 @@ class GlassAnalyzerGUI(ctk.CTk):
             detections.extend(vad_hits + jvm_hits + overlay_hits)
 
         self.scan_results["ram_hits"] = detections
-        self.stat_ram.configure(text=str(len(detections)))
+        self.set_stat(self.stat_ram, len(detections))
 
         if detections:
             self.update_phase("P3", "ALERT", f"({len(detections)} Hits)")
@@ -543,15 +597,12 @@ class GlassAnalyzerGUI(ctk.CTk):
             self.update_phase("P3", "CLEAN", "(Clean RAM)")
             self.audio_alerts.speak("Process memory audit clean.")
 
-        self.progress_bar.set(1.0)
-        self.refresh_results_ui()
-        self.is_scanning = False
-        self.radar.stop_animation()
-        self.btn_ram_scan.configure(state="normal")
+        self.set_progress(1.0)
+        self.finish_scan_ui("CLEAN" if not detections else "DANGEROUS", 100 if detections else 0)
 
     def run_full_audit(self, custom_path=None):
         self.log_to_console("Starting 20-Phase Tournament Forensic Investigation...")
-        self.progress_bar.set(0.05)
+        self.set_progress(0.05)
 
         for code in ["P1", "P2", "P3", "P4", "P5"]:
             self.update_phase(code, "WAITING")
@@ -559,13 +610,13 @@ class GlassAnalyzerGUI(ctk.CTk):
         target_path = custom_path or self.selected_target_path
         mod_files = self.launcher_detector.discover_all_mod_files(target_path)
         self.scan_results["total_mods"] = len(mod_files)
-        self.stat_mods.configure(text=str(len(mod_files)))
+        self.set_stat(self.stat_mods, len(mod_files))
         self.log_to_console(f"Discovered {len(mod_files)} mod JARs across Minecraft launcher profiles to analyze.")
 
         # Phase 1 & 2: Mod Scanning
         self.update_phase("P1", "RUNNING")
         self.update_phase("P2", "RUNNING")
-        self.progress_bar.set(0.2)
+        self.set_progress(0.2)
 
         mod_detections = []
         all_mods_info = []
@@ -596,17 +647,17 @@ class GlassAnalyzerGUI(ctk.CTk):
             else:
                 self.radar.add_blip(is_threat=False)
 
-            self.progress_bar.set(0.2 + (0.35 * ((idx + 1) / max(len(mod_files), 1))))
+            self.set_progress(0.2 + (0.35 * ((idx + 1) / max(len(mod_files), 1))))
 
         self.scan_results["mod_detections"] = mod_detections
         self.scan_results["all_mods"] = all_mods_info
-        self.stat_flagged.configure(text=str(len(mod_detections)))
+        self.set_stat(self.stat_flagged, len(mod_detections))
         self.update_phase("P1", "CLEAN" if not mod_detections else "ALERT")
         self.update_phase("P2", "CLEAN" if not mod_detections else "ALERT")
 
         # Phase 3: Live RAM & VAD & JVMTI Dumper
         self.update_phase("P3", "RUNNING")
-        self.progress_bar.set(0.65)
+        self.set_progress(0.65)
         self.log_to_console("Phase 3: Auditing VAD private memory, loaded JVMTI classes, and Present hooks...")
         ram_res = self.mem_scanner.run_full_memory_audit()
         ram_hits = ram_res.get("detections", [])
@@ -618,7 +669,7 @@ class GlassAnalyzerGUI(ctk.CTk):
             ram_hits.extend(self.overlay_hunter.scan_overlay_hooks(p["pid"]))
 
         self.scan_results["ram_hits"] = ram_hits
-        self.stat_ram.configure(text=str(len(ram_hits)))
+        self.set_stat(self.stat_ram, len(ram_hits))
         if ram_hits:
             max_threat_score = max(max_threat_score, 100)
             self.update_phase("P3", "ALERT", f"({len(ram_hits)} Hits)")
@@ -627,7 +678,7 @@ class GlassAnalyzerGUI(ctk.CTk):
 
         # Phase 4: NTFS USN Journal, PCA, BAM & UserAssist
         self.update_phase("P4", "RUNNING")
-        self.progress_bar.set(0.8)
+        self.set_progress(0.8)
         self.log_to_console("Phase 4: Extracting raw NTFS USN Journal, PCA logs, BAM, and UserAssist ROT13...")
         sys_res = self.system_forensics.run_full_forensics_audit()
         forensic_hits = sys_res.get("all_threats", [])
@@ -637,7 +688,7 @@ class GlassAnalyzerGUI(ctk.CTk):
         forensic_hits.extend(self.vss_recovery.audit_temp_slack_artifacts())
 
         self.scan_results["forensic_hits"] = forensic_hits
-        self.stat_forensics.configure(text=str(len(forensic_hits)))
+        self.set_stat(self.stat_forensics, len(forensic_hits))
         if forensic_hits:
             max_threat_score = max(max_threat_score, 50)
             self.update_phase("P4", "ALERT", f"({len(forensic_hits)} Traces)")
@@ -646,7 +697,7 @@ class GlassAnalyzerGUI(ctk.CTk):
 
         # Phase 5: Anti-Self-Destruct & Parent Launcher Origin
         self.update_phase("P5", "RUNNING")
-        self.progress_bar.set(0.95)
+        self.set_progress(0.95)
         self.log_to_console("Phase 5: Verifying Prefetch integrity, DNS Cache, and Launcher Parent PID...")
         tamper_hits = self.tampering_detector.run_tampering_audit()
         tamper_hits.extend(self.vanilla_integrity.audit_vanilla_versions())
@@ -664,7 +715,7 @@ class GlassAnalyzerGUI(ctk.CTk):
             self.update_phase("P5", "CLEAN")
 
         # Final Verdict Calculation
-        self.progress_bar.set(1.0)
+        self.set_progress(1.0)
         self.scan_results["threat_score"] = max_threat_score
         highest_risk = "DANGEROUS" if max_threat_score >= 65 else ("SUSPICIOUS" if max_threat_score >= 30 else "CLEAN")
         self.scan_results["highest_risk"] = highest_risk
@@ -686,93 +737,123 @@ class GlassAnalyzerGUI(ctk.CTk):
             self.discord_alerts.webhook_url = webhook
             self.discord_alerts.send_audit_alert(self.scan_results, self.player_ign)
 
-        self.refresh_results_ui()
-        self.freeze_monitor.stop_monitoring()
-        self.is_scanning = False
-        self.radar.stop_animation()
-        self.btn_full_scan.configure(state="normal")
+        self.finish_scan_ui(highest_risk, max_threat_score)
+
+    def finish_scan_ui(self, highest_risk, threat_score):
+        def _do():
+            try:
+                self.refresh_results_ui()
+                self.freeze_monitor.stop_monitoring()
+                self.is_scanning = False
+                self.radar.stop_animation()
+                self.btn_full_scan.configure(state="normal")
+                self.btn_ram_scan.configure(state="normal")
+            except Exception:
+                pass
+        self.after(0, _do)
 
     def refresh_results_ui(self):
-        highest_risk = self.scan_results.get("highest_risk", "CLEAN")
-        threat_score = self.scan_results.get("threat_score", 0)
+        def _do():
+            try:
+                highest_risk = self.scan_results.get("highest_risk", "CLEAN")
+                threat_score = self.scan_results.get("threat_score", 0)
 
-        if highest_risk == "CLEAN":
-            self.verdict_label.configure(text="VERIFIED CLEAN", text_color=THEME["success_green"])
-            self.threat_index_label.configure(text=f"Threat Index: {threat_score}% (Safe)", text_color=THEME["success_green"])
-        elif highest_risk == "SUSPICIOUS":
-            self.verdict_label.configure(text="SUSPICIOUS TRACES", text_color=THEME["warning_yellow"])
-            self.threat_index_label.configure(text=f"Threat Index: {threat_score}% (Flagged)", text_color=THEME["warning_yellow"])
-        else:
-            self.verdict_label.configure(text="CRITICAL THREAT", text_color=THEME["danger_red"])
-            self.threat_index_label.configure(text=f"Threat Index: {threat_score}% (Punish/Ban)", text_color=THEME["danger_red"])
+                if highest_risk == "CLEAN":
+                    self.verdict_label.configure(text="VERIFIED CLEAN", text_color=THEME["success_green"])
+                    self.threat_index_label.configure(text=f"Threat Index: {threat_score}% (Safe)", text_color=THEME["success_green"])
+                elif highest_risk == "SUSPICIOUS":
+                    self.verdict_label.configure(text="SUSPICIOUS TRACES", text_color=THEME["warning_yellow"])
+                    self.threat_index_label.configure(text=f"Threat Index: {threat_score}% (Flagged)", text_color=THEME["warning_yellow"])
+                else:
+                    self.verdict_label.configure(text="CRITICAL THREAT", text_color=THEME["danger_red"])
+                    self.threat_index_label.configure(text=f"Threat Index: {threat_score}% (Punish/Ban)", text_color=THEME["danger_red"])
 
-        # Threats Tab
-        for widget in self.threats_scroll.winfo_children():
-            widget.destroy()
+                # Threats Tab - Thread-safe clearing
+                for widget in list(self.threats_scroll.winfo_children()):
+                    try:
+                        widget.pack_forget()
+                        widget.destroy()
+                    except Exception:
+                        pass
 
-        all_threats = []
-        for r in self.scan_results.get("ram_hits", []):
-            all_threats.append(("RAM VAD / INJECTION HOOK", r.get("detail", ""), THEME["danger_red"]))
-        for m in self.scan_results.get("mod_detections", []):
-            details = " | ".join(m.get("matched_details", [])) if isinstance(m.get("matched_details"), list) else m.get("matched_details")
-            score = m.get("threat_score", 50)
-            color = THEME["danger_red"] if score >= 65 else THEME["warning_yellow"]
-            all_threats.append((f"HACK MOD: {m.get('file_name')} ({score}% Threat)", details, color))
-        for s in self.scan_results.get("forensic_hits", []) + self.scan_results.get("tampering_hits", []):
-            all_threats.append((s.get("type", "FORENSIC RECORD"), s.get("detail", ""), THEME["warning_yellow"]))
+                all_threats = []
+                for r in self.scan_results.get("ram_hits", []):
+                    all_threats.append(("RAM VAD / INJECTION HOOK", r.get("detail", ""), THEME["danger_red"]))
+                for m in self.scan_results.get("mod_detections", []):
+                    details = " | ".join(m.get("matched_details", [])) if isinstance(m.get("matched_details"), list) else m.get("matched_details")
+                    score = m.get("threat_score", 50)
+                    color = THEME["danger_red"] if score >= 65 else THEME["warning_yellow"]
+                    all_threats.append((f"HACK MOD: {m.get('file_name')} ({score}% Threat)", details, color))
+                for s in self.scan_results.get("forensic_hits", []) + self.scan_results.get("tampering_hits", []):
+                    all_threats.append((s.get("type", "FORENSIC RECORD"), s.get("detail", ""), THEME["warning_yellow"]))
 
-        if not all_threats:
-            lbl = ctk.CTkLabel(self.threats_scroll, text="✓ Zero cheat threats, VAD memory injections, or USN journal traces found.", font=ctk.CTkFont(family=THEME["font_family"], size=13), text_color=THEME["success_green"])
-            lbl.pack(pady=20)
-        else:
-            for title, desc, color in all_threats:
-                card = ctk.CTkFrame(self.threats_scroll, fg_color=THEME["card_bg"], border_color=color, border_width=1, corner_radius=10)
-                card.pack(fill="x", pady=4, padx=4)
-                ctk.CTkLabel(card, text=title, font=ctk.CTkFont(family=THEME["font_family"], size=13, weight="bold"), text_color=color).pack(anchor="w", padx=12, pady=(8, 2))
-                ctk.CTkLabel(card, text=desc, font=ctk.CTkFont(family=THEME["font_family"], size=12), text_color=THEME["text_primary"], wraplength=980, justify="left").pack(anchor="w", padx=12, pady=(0, 8))
+                if not all_threats:
+                    lbl = ctk.CTkLabel(self.threats_scroll, text="✓ Zero cheat threats, VAD memory injections, or USN journal traces found.", font=ctk.CTkFont(family=THEME["font_family"], size=13), text_color=THEME["success_green"])
+                    lbl.pack(pady=20)
+                else:
+                    for title, desc, color in all_threats:
+                        card = ctk.CTkFrame(self.threats_scroll, fg_color=THEME["card_bg"], border_color=color, border_width=1, corner_radius=10)
+                        card.pack(fill="x", pady=4, padx=4)
+                        ctk.CTkLabel(card, text=title, font=ctk.CTkFont(family=THEME["font_family"], size=13, weight="bold"), text_color=color).pack(anchor="w", padx=12, pady=(8, 2))
+                        ctk.CTkLabel(card, text=desc, font=ctk.CTkFont(family=THEME["font_family"], size=12), text_color=THEME["text_primary"], wraplength=980, justify="left").pack(anchor="w", padx=12, pady=(0, 8))
 
-        # Mod Explorer Tab
-        self.filter_mods_list()
+                # Mod Explorer Tab
+                self.filter_mods_list()
+            except Exception:
+                pass
+        self.after(0, _do)
 
     def filter_mods_list(self):
-        query = self.search_entry.get().strip().lower()
-        for widget in self.mods_scroll.winfo_children():
-            widget.destroy()
+        def _do():
+            try:
+                query = self.search_entry.get().strip().lower()
+                for widget in list(self.mods_scroll.winfo_children()):
+                    try:
+                        widget.pack_forget()
+                        widget.destroy()
+                    except Exception:
+                        pass
 
-        for mod in self.scan_results.get("all_mods", []):
-            fname = mod["file"].lower()
-            jar_res = mod.get("jar_res", {})
-            risk = jar_res.get("risk_level", "CLEAN")
+                for mod in self.scan_results.get("all_mods", []):
+                    fname = mod["file"].lower()
+                    jar_res = mod.get("jar_res", {})
+                    risk = jar_res.get("risk_level", "CLEAN")
 
-            if query and query not in fname and query not in mod.get("path", "").lower():
-                continue
-            if self.filter_seg.get() == "CLEAN" and risk != "CLEAN":
-                continue
-            if self.filter_seg.get() == "FLAGGED" and risk == "CLEAN":
-                continue
+                    if query and query not in fname and query not in mod.get("path", "").lower():
+                        continue
+                    if self.filter_seg.get() == "CLEAN" and risk != "CLEAN":
+                        continue
+                    if self.filter_seg.get() == "FLAGGED" and risk == "CLEAN":
+                        continue
 
-            score = jar_res.get("threat_score", 0)
-            status_color = THEME["success_green"] if risk == "CLEAN" else (THEME["warning_yellow"] if risk == "SUSPICIOUS" else THEME["danger_red"])
-            status_text = f"THREAT: {score}%" if risk != "CLEAN" else ("MODRINTH AUTHENTIC" if mod["verified"] else "SAFE")
+                    score = jar_res.get("threat_score", 0)
+                    status_color = THEME["success_green"] if risk == "CLEAN" else (THEME["warning_yellow"] if risk == "SUSPICIOUS" else THEME["danger_red"])
+                    status_text = f"THREAT: {score}%" if risk != "CLEAN" else ("MODRINTH AUTHENTIC" if mod["verified"] else "SAFE")
 
-            row = ctk.CTkFrame(self.mods_scroll, fg_color=THEME["card_bg"], corner_radius=8)
-            row.pack(fill="x", pady=2, padx=4)
+                    row = ctk.CTkFrame(self.mods_scroll, fg_color=THEME["card_bg"], corner_radius=8)
+                    row.pack(fill="x", pady=2, padx=4)
 
-            # Clickable name opens In-GUI Decompiler
-            btn_decompile = ctk.CTkButton(
-                row, text=f"🔍 {mod['file']}", font=ctk.CTkFont(family=THEME["font_family"], size=12, weight="bold"),
-                fg_color="transparent", text_color=THEME["text_primary"], hover_color=THEME["panel_hover"], anchor="w",
-                command=lambda p=mod["path"]: self.open_decompiler(p)
-            )
-            btn_decompile.pack(side="left", padx=8, pady=4)
-            ctk.CTkLabel(row, text=status_text, font=ctk.CTkFont(family=THEME["font_family"], size=11, weight="bold"), text_color=status_color).pack(side="right", padx=12)
+                    # Clickable name opens In-GUI Decompiler
+                    btn_decompile = ctk.CTkButton(
+                        row, text=f"🔍 {mod['file']}", font=ctk.CTkFont(family=THEME["font_family"], size=12, weight="bold"),
+                        fg_color="transparent", text_color=THEME["text_primary"], hover_color=THEME["panel_hover"], anchor="w",
+                        command=lambda p=mod["path"]: self.open_decompiler(p)
+                    )
+                    btn_decompile.pack(side="left", padx=8, pady=4)
+                    ctk.CTkLabel(row, text=status_text, font=ctk.CTkFont(family=THEME["font_family"], size=11, weight="bold"), text_color=status_color).pack(side="right", padx=12)
+            except Exception:
+                pass
+        self.after(0, _do)
 
     def export_report(self):
-        output_file = ReportGenerator.export_html(self.scan_results, player_ign=self.player_ign)
-        self.log_to_console(f"Forensic Dossier saved: {output_file}")
-        abs_path = Path(output_file).resolve().as_uri()
-        webbrowser.open(abs_path)
-        messagebox.showinfo("Dossier Exported", f"Signed Forensic Screenshare Dossier saved and opened in browser:\n{output_file}")
+        try:
+            output_file = ReportGenerator.export_html(self.scan_results, player_ign=self.player_ign)
+            self.log_to_console(f"Forensic Dossier saved: {output_file}")
+            abs_path = Path(output_file).resolve().as_uri()
+            webbrowser.open(abs_path)
+            messagebox.showinfo("Dossier Exported", f"Signed Forensic Screenshare Dossier saved and opened in browser:\n{output_file}")
+        except Exception as e:
+            self.log_to_console(f"Error exporting dossier: {e}")
 
 def launch_gui(config=None):
     app = GlassAnalyzerGUI(config)
