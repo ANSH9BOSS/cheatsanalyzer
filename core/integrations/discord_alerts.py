@@ -4,7 +4,7 @@ import urllib.request
 import urllib.error
 from datetime import datetime
 
-DEFAULT_WEBHOOK = "https://discord.com/api/webhooks/1542097008985378900/_EDmhPGP4Usrr5Rek-pETF4_ukjIhCaZz6MZLcvAWVSpcjLcYnGt00XVCjm01VDrJjMy"
+DEFAULT_WEBHOOK = "https://discord.com/api/webhooks/1543109814593519658/VeKGdUanLyJCR5-N86Ma0EcD4q5VR18MiDGJOEyMiF0t5HNVd_dQS3Qxcgvkzjkpo1hN"
 
 class DiscordStaffAlerts:
     """Dispatches real-time forensic screenshare alert embeds and dossier reports to server staff Discord channels."""
